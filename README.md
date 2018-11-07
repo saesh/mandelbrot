@@ -12,6 +12,12 @@ I wanted to find out how go routines and channels work and experimented with som
 
 ## How to use it?
 
+```text
+$ go get github.com/saesh/mandelbrot
+$ dep ensure
+$ go run examples/mandelbrot-jpeg/main.go
+```
+
 The repository contains the library for generating Mandelbrot set image data in `pkg` and some example programs in `examples`.
 
 The `Mandelbrot` type exposes the image data in the property `ImageData`, or it can be encoded as a JPEG file with the `WriteJpeg` method.
