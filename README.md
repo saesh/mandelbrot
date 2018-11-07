@@ -64,7 +64,7 @@ slow.
 
 ### Buffered channel for N CPU go routines
 
-`Mandelbrot.RenderWithBufferedChannel`: Next, the data was split up in batches equal to the number of CPUs. And for each batch one go routine was spawned. The batches are made with a Coordinate channel with the batch size as the buffer. This was really fast and let all cores run at 100% with almost no system usage.
+`Mandelbrot.RenderWithBufferedChannel`: Next, the data was split up in batches. The number of batches is equal to the number of CPUs. And for each batch one go routine was spawned. The Coordinate channel's buffer size is that of the length of each batch. So on a 4 core system rendering a 4000 pixel image 4 go routines would spawn, each processing 1000 pixels. This was really fast and let all cores run at 100% with almost no system usage.
 
 I plotted the render times of each approach:
 
