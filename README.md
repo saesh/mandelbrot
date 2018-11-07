@@ -4,10 +4,10 @@ This Go library generates the Mandelbrot set and served as my playground to lear
 I wanted to find out how go routines and channels work and experimented with some concurrency approaches I came up with.
 
 <p align="center">
-    <img src="/assets/image01.jpeg" width="225">
-    <img src="/assets/image02.jpeg" width="225">
-    <img src="/assets/image03.jpeg" width="225">
-    <img src="/assets/image04.jpeg" width="225">
+    <img src="/assets/image01.jpeg" width="220">
+    <img src="/assets/image02.jpeg" width="220">
+    <img src="/assets/image03.jpeg" width="220">
+    <img src="/assets/image04.jpeg" width="220">
 </p>
 
 ## How to use it?
