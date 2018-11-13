@@ -117,10 +117,10 @@ func (m *Mandelbrot) RenderWithBufferedChannel() {
 
 	for i := 0; i < numCPU; i++ {
 		go func() {
+			defer wg.Done()
 			for coordinate := range coordinates {
 				m.colorize(coordinate)
 			}
-			wg.Done()
 		}()
 	}
 
