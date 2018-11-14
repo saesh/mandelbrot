@@ -6,7 +6,7 @@ measure:
 	go run main.go
 
 plot:
-	./generate-charts.sh
+	./plot-data.sh
 
 clean:
 	rm rendering-times.dat
