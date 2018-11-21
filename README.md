@@ -14,6 +14,7 @@ I wanted to find out how go routines and channels work and experimented with som
 
 ```text
 $ go get github.com/saesh/mandelbrot
+$ cd $GOPATH/src/github.com/saesh/mandelbrot
 $ dep ensure
 $ go run examples/mandelbrot-jpeg/main.go
 ```
