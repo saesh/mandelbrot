@@ -12,12 +12,20 @@ I wanted to find out how go routines and channels work and experimented with som
 
 ## How to use it?
 
+`mandelbrot` assumes you have Go 1.11+ installed as it uses Go modules for its dependencies.
+
 ```text
-$ go get github.com/saesh/mandelbrot
-$ cd $GOPATH/src/github.com/saesh/mandelbrot
-$ dep ensure
+$ git clone https://github.com/saesh/mandelbrot && cd mandelbrot
 $ go run examples/mandelbrot-jpeg/main.go
 ```
+
+If you are using Go in version <1.11 you can install the depencencies manually:
+
+```text
+go get github.com/lucasb-eyer/go-colorful
+```
+
+---
 
 The repository contains the library for generating Mandelbrot set image data in `pkg` and some example programs in `examples`.
 
