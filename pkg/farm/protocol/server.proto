@@ -1,0 +1,15 @@
+syntax = "proto3";
+
+package protocol;
+
+message ClientConfig {
+  string ip = 1;
+  int32 port = 2;
+  string hostname = 3;
+}
+
+message Void {}
+
+service Mandelbrot {
+  rpc Register(ClientConfig) returns(Void) {}
+}
