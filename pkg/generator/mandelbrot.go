@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"image"
 	"image/jpeg"
-	"log"
 	"math"
 	"os"
 	"runtime"
@@ -253,11 +252,9 @@ func isMandelbrot2(coordinate Coordinate, maxIterations int) (bool, int, float64
 }
 
 func isMandelbrotToResult(coordinate Coordinate, maxIterations int) MandelbrotResult {
-	fmt.Println("isMandelbrotToResult")
 	isMandelbrot, iterations, re, im := isMandelbrot2(coordinate, maxIterations)
 	result := MandelbrotResult{isMandelbrot, iterations, re, im, coordinate.Index}
 
-	log.Printf("result: %v", result)
 	return result
 }
 
