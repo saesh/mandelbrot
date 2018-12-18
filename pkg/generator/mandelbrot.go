@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"image"
 	"image/jpeg"
+	"log"
 	"math"
 	"os"
 	"runtime"
@@ -16,7 +17,7 @@ import (
 type Coordinate struct {
 	Re    float64
 	Im    float64
-	index int
+	Index int
 }
 
 // Mandelbrot defines the parameters of the set to render
@@ -127,6 +128,48 @@ func (m *Mandelbrot) RenderWithBufferedChannel() {
 	wg.Wait()
 }
 
+func (m *Mandelbrot) Coordinates(buffer int) chan Coordinate {
+	m.ImageData = image.NewRGBA(image.Rect(0, 0, m.Width, m.Height))
+	nPixels := m.Height * m.Width
+
+	coordinates := make(chan Coordinate, buffer)
+	go func() {
+		for index := 0; index < nPixels*4; index += 4 {
+			coordinates <- m.toCoordinate(index)
+		}
+		close(coordinates)
+	}()
+
+	return coordinates
+}
+
+type MandelbrotResult struct {
+	IsMandelbrot bool
+	Iterations   int
+	Re           float64
+	Im           float64
+	Index        int
+}
+
+func IsMandelbrot(coordinates chan Coordinate, resultChan chan MandelbrotResult, maxIterations int) {
+	numCPU := runtime.NumCPU()
+	var wg sync.WaitGroup
+	wg.Add(numCPU)
+
+	for i := 0; i < numCPU; i++ {
+		go func() {
+			defer wg.Done()
+			for coordinate := range coordinates {
+				resultChan <- isMandelbrotToResult(coordinate, maxIterations)
+			}
+			fmt.Println("reading from coordinates channel Done")
+		}()
+	}
+
+	defer close(resultChan)
+	wg.Wait()
+}
+
 // WriteJpeg encodes the Mandelbrot.ImageData to a JPEG file
 // The quality for JPEG encoding must be passed as int, value between 0..100
 func (m *Mandelbrot) WriteJpeg(filename string, quality int) error {
@@ -189,13 +232,50 @@ func (m *Mandelbrot) isMandelbrot(coordinate Coordinate) (bool, int, float64, fl
 	return true, m.MaxIterations, zr, zi
 }
 
+func isMandelbrot2(coordinate Coordinate, maxIterations int) (bool, int, float64, float64) {
+	var cr = coordinate.Re
+	var ci = coordinate.Im
+	var zr = cr
+	var zi = ci
+
+	for iteration := 0; iteration < maxIterations; iteration++ {
+		if zr*zr+zi*zi > 4 {
+			return false, iteration, zr, zi
+		}
+
+		newzr := (zr * zr) - (zi * zi) + cr
+		newzi := ((zr * zi) * 2) + ci
+		zr = newzr
+		zi = newzi
+	}
+
+	return true, maxIterations, zr, zi
+}
+
+func isMandelbrotToResult(coordinate Coordinate, maxIterations int) MandelbrotResult {
+	fmt.Println("isMandelbrotToResult")
+	isMandelbrot, iterations, re, im := isMandelbrot2(coordinate, maxIterations)
+	result := MandelbrotResult{isMandelbrot, iterations, re, im, coordinate.Index}
+
+	log.Printf("result: %v", result)
+	return result
+}
+
 // colorize takes a Coordinate and uses the results from isMandelbrot to
 // get a color. The color is then set in Mandelbrot.ImageData
 func (m *Mandelbrot) colorize(coordinate Coordinate) {
 	isMandelbrot, iteration, real, imaginary := m.isMandelbrot(coordinate)
 	color := colors.GetColor(m.Colors, isMandelbrot, iteration, m.MaxIterations, real, imaginary)
-	m.ImageData.Pix[coordinate.index] = color.R
-	m.ImageData.Pix[coordinate.index+1] = color.G
-	m.ImageData.Pix[coordinate.index+2] = color.B
-	m.ImageData.Pix[coordinate.index+3] = color.A
+	m.ImageData.Pix[coordinate.Index] = color.R
+	m.ImageData.Pix[coordinate.Index+1] = color.G
+	m.ImageData.Pix[coordinate.Index+2] = color.B
+	m.ImageData.Pix[coordinate.Index+3] = color.A
+}
+
+func (m *Mandelbrot) ColorizeFunc(isMandelbrot bool, iteration int, real float64, imaginary float64, maxIterations int, index int) {
+	color := colors.GetColor(m.Colors, isMandelbrot, iteration, maxIterations, real, imaginary)
+	m.ImageData.Pix[index] = color.R
+	m.ImageData.Pix[index+1] = color.G
+	m.ImageData.Pix[index+2] = color.B
+	m.ImageData.Pix[index+3] = color.A
 }

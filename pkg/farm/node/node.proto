@@ -1,0 +1,42 @@
+syntax = "proto3";
+
+package node;
+
+message RegisterRequest {
+  string ip = 1;
+  int32  port = 2;
+  string hostname = 3;
+}
+
+message RenderConfiguration {
+  int32 max_iterations = 1;
+  int32 color_preset = 2;
+  float x = 3;
+  float y = 4;
+  float r = 5;
+}
+
+message Coordinate {
+  float re = 1;
+  float im = 2;
+  int32 index = 3;
+}
+
+message ComputeResult {
+  float re = 1;
+  float im = 2;
+  int32 index = 3;
+  int32 iteration = 4;
+  bool  is_mandelbrot = 5;
+}
+
+message Void {}
+
+service HeadNode {
+  rpc Register(RegisterRequest) returns(Void) {}
+}
+
+service RenderNode {
+  rpc Configure(RenderConfiguration) returns(Void) {}
+  rpc IsMandelbrot(stream Coordinate) returns(stream ComputeResult) {}
+}
