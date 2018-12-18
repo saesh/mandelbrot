@@ -45,7 +45,7 @@ func broadcastService() {
 }
 
 func startHeadNodeService() {
-	var headNode HeadNode
+	headNode := &HeadNode{}
 
 	srv := grpc.NewServer()
 
@@ -58,10 +58,12 @@ func startHeadNodeService() {
 	log.Fatal(srv.Serve(l))
 }
 
-func (h HeadNode) Register(ctx context.Context, registerRequest *node.RegisterRequest) (*node.Void, error) {
+func (h *HeadNode) Register(ctx context.Context, registerRequest *node.RegisterRequest) (*node.Void, error) {
 	fmt.Printf("render node registered: %v (%v:%v)\n", registerRequest.Hostname, registerRequest.Ip, registerRequest.Port)
 
 	h.Nodes = append(h.Nodes, RenderNodeConfig{registerRequest.Hostname, registerRequest.Ip, int(registerRequest.Port)})
+
+	fmt.Printf("number of nodes: %v\n", len(h.Nodes))
 
 	if len(h.Nodes) == 2 {
 		defer h.startRendering()
@@ -70,7 +72,7 @@ func (h HeadNode) Register(ctx context.Context, registerRequest *node.RegisterRe
 	return &node.Void{}, nil
 }
 
-func (h HeadNode) startRendering() error {
+func (h *HeadNode) startRendering() error {
 
 	// start rendering, TODO: move to own logicial component
 	mb := &gen.Mandelbrot{}
