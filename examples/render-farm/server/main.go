@@ -7,7 +7,7 @@ import (
 	"net"
 
 	"github.com/saesh/mandelbrot/pkg/farm/discovery"
-	"github.com/saesh/mandelbrot/pkg/farm/protocol"
+	"github.com/saesh/mandelbrot/pkg/farm/headnode"
 	grpc "google.golang.org/grpc"
 )
 
@@ -15,16 +15,16 @@ const (
 	broadcastAddress = "239.0.0.0:5000"
 )
 
-type MandelbrotServer struct{}
+type HeadNode struct{}
 
 func main() {
 	go broadcastService()
 
-	var mandelbrot MandelbrotServer
+	var headNode HeadNode
 
 	srv := grpc.NewServer()
 
-	protocol.RegisterMandelbrotServer(srv, mandelbrot)
+	headnode.RegisterHeadNodeServer(srv, headNode)
 
 	l, err := net.Listen("tcp", ":8080")
 	if err != nil {
@@ -43,7 +43,7 @@ func broadcastService() {
 	broadcaster.Start()
 }
 
-func (MandelbrotServer) Register(ctx context.Context, config *protocol.ClientConfig) (*protocol.Void, error) {
-	fmt.Printf("Client connected: %v (%v:%v)\n", config.Hostname, config.Ip, config.Port)
-	return &protocol.Void{}, nil
+func (HeadNode) Register(ctx context.Context, registerRequest *headnode.RegisterRequest) (*headnode.Void, error) {
+	fmt.Printf("render node registered: %v (%v:%v)\n", registerRequest.Hostname, registerRequest.Ip, registerRequest.Port)
+	return &headnode.Void{}, nil
 }

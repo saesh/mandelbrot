@@ -1,4 +1,4 @@
-package client
+package rendernode
 
 import (
 	"context"
@@ -9,55 +9,55 @@ import (
 	"os"
 
 	"github.com/saesh/mandelbrot/pkg/farm/discovery"
-	"github.com/saesh/mandelbrot/pkg/farm/protocol"
+	"github.com/saesh/mandelbrot/pkg/farm/headnode"
 	grpc "google.golang.org/grpc"
 )
 
 const (
 	broadcastAddress = "239.0.0.0:5000"
+	grpcPort         = 8081
 )
 
 func Start() {
-	serviceIP, err := discoverServiceIP()
+	headNodeIP, err := discoverHeadNodeIP()
 	if err != nil {
-		log.Fatalf("could not discover service ip: %v", err)
+		log.Fatalf("could not discover head node: %v", err)
 	}
 
-	err = registerAtService(serviceIP)
+	err = registerAtHeadNode(headNodeIP)
 	if err != nil {
-		log.Fatalf("could not register at server: %v", err)
+		log.Fatalf("could not register at head node: %v", err)
 	}
 }
 
-func discoverServiceIP() (string, error) {
+func discoverHeadNodeIP() (string, error) {
 	listener, err := discovery.NewListener(broadcastAddress)
 	if err != nil {
 		return "", err
 	}
 
-	// read ip from service broadcaster multicast
 	stopChan := make(chan struct{})
 	ipChan := make(chan string)
 
-	go listener.Start(stopChan, getBroadcasterIP(ipChan))
+	go listener.Start(stopChan, getSourceIP(ipChan))
 
-	var serviceIP string
+	var headNodeIP string
 	for ip := range ipChan {
-		serviceIP = ip
+		headNodeIP = ip
 		close(stopChan)
 	}
 
-	return serviceIP, nil
+	return headNodeIP, nil
 }
 
-func registerAtService(ip string) error {
-	fmt.Printf("registering at service: %v\n", ip)
-	conn, err := grpc.Dial(ip+":8080", grpc.WithInsecure())
+func registerAtHeadNode(ip string) error {
+	fmt.Printf("registering at head node: %v\n", ip)
+	conn, err := grpc.Dial(fmt.Sprintf("%v:8080", ip), grpc.WithInsecure())
 	if err != nil {
 		return err
 	}
 
-	client := protocol.NewMandelbrotClient(conn)
+	client := headnode.NewHeadNodeClient(conn)
 	err = register(context.Background(), client)
 	if err != nil {
 		return err
@@ -66,14 +66,14 @@ func registerAtService(ip string) error {
 	return nil
 }
 
-func getBroadcasterIP(ipChan chan string) func(*net.UDPAddr, int, []byte) {
+func getSourceIP(ipChan chan string) func(*net.UDPAddr, int, []byte) {
 	return func(src *net.UDPAddr, numBytes int, bytes []byte) {
 		ipChan <- src.IP.String()
 		close(ipChan)
 	}
 }
 
-func register(ctx context.Context, client protocol.MandelbrotClient) error {
+func register(ctx context.Context, client headnode.HeadNodeClient) error {
 	ip, err := externalIP()
 	if err != nil {
 		return err
@@ -84,13 +84,13 @@ func register(ctx context.Context, client protocol.MandelbrotClient) error {
 		return err
 	}
 
-	config := &protocol.ClientConfig{
+	request := &headnode.RegisterRequest{
 		Hostname: hostname,
 		Ip:       ip,
-		Port:     8081,
+		Port:     grpcPort,
 	}
 
-	_, err = client.Register(ctx, config)
+	_, err = client.Register(ctx, request)
 
 	return err
 }

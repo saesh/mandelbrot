@@ -1,9 +1,9 @@
 package main
 
 import (
-	"github.com/saesh/mandelbrot/pkg/farm/client"
+	"github.com/saesh/mandelbrot/pkg/farm/rendernode"
 )
 
 func main() {
-	client.Start()
+	rendernode.Start()
 }
