@@ -38,8 +38,8 @@ func (n *RenderNode) Configure(ctx context.Context, config *RenderConfiguration)
 }
 
 func (n *RenderNode) IsMandelbrot(stream RenderNode_IsMandelbrotServer) error {
-	coordinateChan := make(chan g.Coordinate, 100)
-	resultChan := make(chan g.MandelbrotResult, 100)
+	coordinateChan := make(chan g.Coordinate, 100000)
+	resultChan := make(chan g.MandelbrotResult, 100000)
 
 	go g.IsMandelbrot(coordinateChan, resultChan, int(n.RenderConfig.MaxIterations))
 
