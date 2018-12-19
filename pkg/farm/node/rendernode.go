@@ -3,10 +3,10 @@ package node
 import (
 	"context"
 	"fmt"
-	"io"
 	"log"
 	"net"
 	"os"
+	"runtime"
 	"sync"
 
 	"github.com/saesh/mandelbrot/pkg/farm/discovery"
@@ -33,37 +33,23 @@ func (n *RenderNode) Configure(ctx context.Context, config *RenderConfiguration)
 		MaxIterations: int(config.MaxIterations),
 		R:             float64(config.R),
 		X:             float64(config.X),
-		Y:             float64(config.Y)}
+		Y:             float64(config.Y),
+		Width:         int(config.Width),
+		Height:        int(config.Height)}
 	log.Println("received render configuration")
 	return &Void{}, nil
 }
 
-func (n *RenderNode) IsMandelbrot(stream RenderNode_IsMandelbrotServer) error {
-	coordinateChan := make(chan g.Coordinate, 100000)
+func (n *RenderNode) IsMandelbrot(void *Void, stream RenderNode_IsMandelbrotServer) error {
+	numCPU := runtime.NumCPU()
+	pixelCount := int(n.RenderConfig.EndIndex - n.RenderConfig.StartIndex)
+	coordinateChan := n.MB.Coordinates(pixelCount, pixelCount/numCPU)
 	resultChan := make(chan g.MandelbrotResult, 100000)
 
 	go n.MB.IsMandelbrot(coordinateChan, resultChan)
 
 	var wg sync.WaitGroup
-	wg.Add(2)
-
-	go func() {
-		for {
-			coordinate, err := stream.Recv()
-			if err == io.EOF {
-				log.Println("input stream EOF")
-				defer close(coordinateChan)
-				wg.Done()
-				return
-			}
-			if err != nil {
-				wg.Done()
-				return
-			}
-
-			coordinateChan <- g.Coordinate{Re: float64(coordinate.Re), Im: float64(coordinate.Im), Index: int(coordinate.Index)}
-		}
-	}()
+	wg.Add(1)
 
 	go func() {
 		var count = 0

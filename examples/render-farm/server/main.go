@@ -75,19 +75,28 @@ func (h *HeadNode) Register(ctx context.Context, registerRequest *node.RegisterR
 func (h *HeadNode) startRendering() error {
 
 	// start rendering, TODO: move to own logicial component
-	mb := gen.NewMandelbrot(3000, 3000)
+	width := 3000
+	height := 3000
+	mb := gen.NewMandelbrot(width, height)
 
 	mb.X = 0
 	mb.Y = 0
 	mb.R = 4
 
-	for _, nodeConfig := range h.Nodes {
+	nodesCount := len(h.Nodes)
+	pixelPerNode := (width * height) / nodesCount
+
+	for index, nodeConfig := range h.Nodes {
 		configureRenderNode(nodeConfig, &node.RenderConfiguration{
 			ColorPreset:   int32(mb.Colors),
 			MaxIterations: int32(mb.MaxIterations),
 			X:             float32(mb.X),
 			Y:             float32(mb.Y),
 			R:             float32(mb.R),
+			StartIndex:    int32(index * pixelPerNode),
+			EndIndex:      int32(index*pixelPerNode + pixelPerNode),
+			Width:         int32(mb.Width),
+			Height:        int32(mb.Height),
 		})
 	}
 
@@ -104,7 +113,7 @@ func (h *HeadNode) startRendering() error {
 			}
 
 			client := node.NewRenderNodeClient(conn)
-			stream, err := client.IsMandelbrot(context.Background())
+			stream, err := client.IsMandelbrot(context.Background(), &node.Void{})
 			if err != nil {
 				log.Printf("Error writing to render node: %v", err)
 			}
@@ -128,14 +137,14 @@ func (h *HeadNode) startRendering() error {
 			}()
 
 			// send coordinates
-			coordinates := mb.Coordinates((mb.Width * mb.Height) / len(h.Nodes))
-			log.Printf("[START] sending coordinates to node: %v", nodeConfig.Hostname)
-			for coordinate := range coordinates {
-				if err := stream.Send(&node.Coordinate{Re: float32(coordinate.Re), Im: float32(coordinate.Im), Index: int32(coordinate.Index)}); err != nil {
-					log.Fatalf("Failed to send a coordinate: %v", err)
-				}
-			}
-			log.Printf("[DONE] sending coordinates to node: %v", nodeConfig.Hostname)
+			// coordinates := mb.Coordinates((mb.Width * mb.Height) / len(h.Nodes))
+			// log.Printf("[START] sending coordinates to node: %v", nodeConfig.Hostname)
+			// for coordinate := range coordinates {
+			// 	if err := stream.Send(&node.Coordinate{Re: float32(coordinate.Re), Im: float32(coordinate.Im), Index: int32(coordinate.Index)}); err != nil {
+			// 		log.Fatalf("Failed to send a coordinate: %v", err)
+			// 	}
+			// }
+			// log.Printf("[DONE] sending coordinates to node: %v", nodeConfig.Hostname)
 
 			err = stream.CloseSend()
 			if err != nil {

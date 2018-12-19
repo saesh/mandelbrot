@@ -14,6 +14,10 @@ message RenderConfiguration {
   float x = 3;
   float y = 4;
   float r = 5;
+  int32 start_index = 6;
+  int32 end_index = 7;
+  int32 width = 8;
+  int32 height = 9;
 }
 
 message Coordinate {
@@ -38,5 +42,5 @@ service HeadNode {
 
 service RenderNode {
   rpc Configure(RenderConfiguration) returns(Void) {}
-  rpc IsMandelbrot(stream Coordinate) returns(stream ComputeResult) {}
+  rpc IsMandelbrot(Void) returns(stream ComputeResult) {}
 }

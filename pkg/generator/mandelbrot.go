@@ -59,8 +59,9 @@ func NewMandelbrot(width int, height int) *Mandelbrot {
 // Render generates the Mandelbrot set with N CPU number of go routines
 func (m *Mandelbrot) Render() {
 	numCPU := runtime.NumCPU()
-	buffer := m.Height * m.Width / numCPU
-	coordinates := m.Coordinates(buffer)
+	nPixels := m.Height * m.Width
+	buffer := nPixels / numCPU
+	coordinates := m.Coordinates(nPixels, buffer)
 	var wg sync.WaitGroup
 	wg.Add(numCPU)
 
@@ -77,12 +78,12 @@ func (m *Mandelbrot) Render() {
 	wg.Wait()
 }
 
-func (m *Mandelbrot) Coordinates(buffer int) chan Coordinate {
-	nPixels := m.Height * m.Width
+func (m *Mandelbrot) Coordinates(numCoordinates int, buffer int) chan Coordinate {
+	// nPixels := m.Height * m.Width
 
 	coordinates := make(chan Coordinate, buffer)
 	go func() {
-		for index := 0; index < nPixels; index++ {
+		for index := 0; index < numCoordinates; index++ {
 			coordinates <- m.toCoordinate(index)
 		}
 		close(coordinates)
@@ -116,9 +117,10 @@ func (m *Mandelbrot) toCoordinate(index int) Coordinate {
 	var height = float64(m.Height)
 
 	aspectRatio := height / width
+	pixelIndex := int(math.Floor(float64(index)))
 
 	// Create a point in 0, 0 top and left indexed pane
-	point := image.Point{index % m.Width, int(math.Floor(float64(index) / width))}
+	point := image.Point{pixelIndex % m.Width, int(math.Floor(float64(pixelIndex) / width))}
 
 	// Move pane to a complex pane, 0,0 centered and scale with factor
 	re := (((float64(point.X) * m.R / width) - m.R/2) + (m.X * aspectRatio)) / aspectRatio
