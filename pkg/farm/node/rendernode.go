@@ -43,7 +43,7 @@ func (n *RenderNode) Configure(ctx context.Context, config *RenderConfiguration)
 func (n *RenderNode) IsMandelbrot(void *Void, stream RenderNode_IsMandelbrotServer) error {
 	numCPU := runtime.NumCPU()
 	pixelCount := int(n.RenderConfig.EndIndex - n.RenderConfig.StartIndex)
-	coordinateChan := n.MB.Coordinates(pixelCount, pixelCount/numCPU)
+	coordinateChan := n.MB.Coordinates(int(n.RenderConfig.StartIndex), int(n.RenderConfig.EndIndex), pixelCount/numCPU)
 	resultChan := make(chan g.MandelbrotResult, 100000)
 
 	go n.MB.IsMandelbrot(coordinateChan, resultChan)
@@ -53,9 +53,7 @@ func (n *RenderNode) IsMandelbrot(void *Void, stream RenderNode_IsMandelbrotServ
 
 	log.Printf("starting to render %d pixels\n", pixelCount)
 	go func() {
-		var count = 0
 		for r := range resultChan {
-			count++
 			computeResult := &ComputeResult{
 				Re:           float32(r.Re),
 				Im:           float32(r.Im),

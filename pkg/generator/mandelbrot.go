@@ -61,7 +61,7 @@ func (m *Mandelbrot) Render() {
 	numCPU := runtime.NumCPU()
 	nPixels := m.Height * m.Width
 	buffer := nPixels / numCPU
-	coordinates := m.Coordinates(nPixels, buffer)
+	coordinates := m.Coordinates(0, nPixels, buffer)
 	var wg sync.WaitGroup
 	wg.Add(numCPU)
 
@@ -78,12 +78,10 @@ func (m *Mandelbrot) Render() {
 	wg.Wait()
 }
 
-func (m *Mandelbrot) Coordinates(numCoordinates int, buffer int) chan Coordinate {
-	// nPixels := m.Height * m.Width
-
+func (m *Mandelbrot) Coordinates(startIndex int, endIndex int, buffer int) chan Coordinate {
 	coordinates := make(chan Coordinate, buffer)
 	go func() {
-		for index := 0; index < numCoordinates; index++ {
+		for index := startIndex; index < endIndex; index++ {
 			coordinates <- m.toCoordinate(index)
 		}
 		close(coordinates)
