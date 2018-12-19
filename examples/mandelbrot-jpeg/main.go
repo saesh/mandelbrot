@@ -1,12 +1,15 @@
 package main
 
 import (
+	"log"
+	"time"
+
 	"github.com/saesh/mandelbrot/pkg/colors"
 	g "github.com/saesh/mandelbrot/pkg/generator"
 )
 
 func main() {
-	mb := g.NewMandelbrot(1000, 1000)
+	mb := g.NewMandelbrot(6000, 6000)
 
 	mb.MaxIterations = 300
 	mb.Colors = colors.GradientUltraFractal
@@ -31,6 +34,8 @@ func main() {
 	// mb.Y = 0.1
 	// mb.R = 0.0025
 
+	start := time.Now()
 	mb.Render()
+	log.Printf("elapsed: %v\n", time.Since(start))
 	mb.WriteJpeg("mandelbrot.jpeg", 90)
 }

@@ -58,11 +58,9 @@ func NewMandelbrot(width int, height int) *Mandelbrot {
 
 // Render generates the Mandelbrot set with N CPU number of go routines
 func (m *Mandelbrot) Render() {
-	buffer := m.Height * m.Width / 4
-
-	coordinates := m.Coordinates(buffer)
-
 	numCPU := runtime.NumCPU()
+	buffer := m.Height * m.Width / numCPU
+	coordinates := m.Coordinates(buffer)
 	var wg sync.WaitGroup
 	wg.Add(numCPU)
 
@@ -84,7 +82,7 @@ func (m *Mandelbrot) Coordinates(buffer int) chan Coordinate {
 
 	coordinates := make(chan Coordinate, buffer)
 	go func() {
-		for index := 0; index < nPixels*4; index += 4 {
+		for index := 0; index < nPixels; index++ {
 			coordinates <- m.toCoordinate(index)
 		}
 		close(coordinates)
@@ -118,10 +116,9 @@ func (m *Mandelbrot) toCoordinate(index int) Coordinate {
 	var height = float64(m.Height)
 
 	aspectRatio := height / width
-	pixelIndex := int(math.Floor(float64(index) / 4))
 
 	// Create a point in 0, 0 top and left indexed pane
-	point := image.Point{pixelIndex % m.Width, int(math.Floor(float64(pixelIndex) / width))}
+	point := image.Point{index % m.Width, int(math.Floor(float64(index) / width))}
 
 	// Move pane to a complex pane, 0,0 centered and scale with factor
 	re := (((float64(point.X) * m.R / width) - m.R/2) + (m.X * aspectRatio)) / aspectRatio
@@ -165,10 +162,11 @@ func (m *Mandelbrot) isMandelbrotToResult(coordinate Coordinate) MandelbrotResul
 
 func (m *Mandelbrot) ColorizeFunc(isMandelbrot bool, iteration int, real float64, imaginary float64, maxIterations int, index int) {
 	color := colors.GetColor(m.Colors, isMandelbrot, iteration, maxIterations, real, imaginary)
-	m.ImageData.Pix[index] = color.R
-	m.ImageData.Pix[index+1] = color.G
-	m.ImageData.Pix[index+2] = color.B
-	m.ImageData.Pix[index+3] = color.A
+	arrayIndex := index * 4
+	m.ImageData.Pix[arrayIndex] = color.R
+	m.ImageData.Pix[arrayIndex+1] = color.G
+	m.ImageData.Pix[arrayIndex+2] = color.B
+	m.ImageData.Pix[arrayIndex+3] = color.A
 }
 
 // WriteJpeg encodes the Mandelbrot.ImageData to a JPEG file
