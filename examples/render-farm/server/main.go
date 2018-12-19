@@ -58,11 +58,11 @@ func startHeadNodeService() {
 }
 
 func (h *HeadNode) Register(ctx context.Context, registerRequest *node.RegisterRequest) (*node.Void, error) {
-	fmt.Printf("render node registered: %v (%v:%v)\n", registerRequest.Hostname, registerRequest.Ip, registerRequest.Port)
+	log.Printf("render node registered: %v (%v:%v)\n", registerRequest.Hostname, registerRequest.Ip, registerRequest.Port)
 
 	h.Nodes = append(h.Nodes, RenderNodeConfig{registerRequest.Hostname, registerRequest.Ip, int(registerRequest.Port)})
 
-	fmt.Printf("number of nodes: %v\n", len(h.Nodes))
+	log.Printf("number of nodes: %v\n", len(h.Nodes))
 
 	if len(h.Nodes) == 1 {
 		defer h.startRendering()
@@ -147,7 +147,7 @@ func (h *HeadNode) startRendering() error {
 }
 
 func configureRenderNode(nodeConfig RenderNodeConfig, config *node.RenderConfiguration) error {
-	fmt.Printf("configuring render node: %v\n", nodeConfig.Hostname)
+	log.Printf("configuring render node: %v\n", nodeConfig.Hostname)
 	conn, err := grpc.Dial(fmt.Sprintf("%v:%v", nodeConfig.IP, nodeConfig.Port), grpc.WithInsecure())
 	if err != nil {
 		return err
