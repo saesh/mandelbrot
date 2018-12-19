@@ -7,6 +7,7 @@ import (
 	"log"
 	"net"
 	"sync"
+	"time"
 
 	"github.com/saesh/mandelbrot/pkg/farm/discovery"
 	"github.com/saesh/mandelbrot/pkg/farm/node"
@@ -74,7 +75,7 @@ func (h *HeadNode) Register(ctx context.Context, registerRequest *node.RegisterR
 func (h *HeadNode) startRendering() error {
 
 	// start rendering, TODO: move to own logicial component
-	mb := gen.NewMandelbrot(400, 400)
+	mb := gen.NewMandelbrot(3000, 3000)
 
 	mb.X = 0
 	mb.Y = 0
@@ -95,6 +96,7 @@ func (h *HeadNode) startRendering() error {
 
 	for _, nodeConfig := range h.Nodes {
 		go func(nodeConfig RenderNodeConfig) {
+			timerStart := time.Now()
 			log.Printf("[START] rendering on node: %v\n", nodeConfig.Hostname)
 			conn, err := grpc.Dial(fmt.Sprintf("%v:%v", nodeConfig.IP, nodeConfig.Port), grpc.WithInsecure())
 			if err != nil {
@@ -107,6 +109,8 @@ func (h *HeadNode) startRendering() error {
 				log.Printf("Error writing to render node: %v", err)
 			}
 			waitc := make(chan struct{})
+
+			// read results
 			go func() {
 				for {
 					result, err := stream.Recv()
@@ -123,6 +127,7 @@ func (h *HeadNode) startRendering() error {
 				}
 			}()
 
+			// send coordinates
 			coordinates := mb.Coordinates((mb.Width * mb.Height) / len(h.Nodes))
 			log.Printf("[START] sending coordinates to node: %v", nodeConfig.Hostname)
 			for coordinate := range coordinates {
@@ -131,12 +136,13 @@ func (h *HeadNode) startRendering() error {
 				}
 			}
 			log.Printf("[DONE] sending coordinates to node: %v", nodeConfig.Hostname)
+
 			err = stream.CloseSend()
 			if err != nil {
 				log.Printf("error closing stream to client: %v\n", err)
 			}
 			<-waitc
-			log.Printf("[DONE] rendering on node: %v\n", nodeConfig.Hostname)
+			log.Printf("[DONE] rendering on node: %v, elapsed time: %v\n", nodeConfig.Hostname, time.Since(timerStart))
 			wg.Done()
 		}(nodeConfig)
 	}
