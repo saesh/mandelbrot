@@ -6,10 +6,8 @@ import (
 )
 
 func main() {
-	mb := &g.Mandelbrot{}
+	mb := g.NewMandelbrot(1000, 1000)
 
-	mb.Width = 1000
-	mb.Height = 1000
 	mb.MaxIterations = 300
 	mb.Colors = colors.GradientUltraFractal
 

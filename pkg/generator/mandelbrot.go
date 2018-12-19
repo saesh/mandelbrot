@@ -35,81 +35,32 @@ type Mandelbrot struct {
 	Colors        int
 }
 
+type MandelbrotResult struct {
+	IsMandelbrot bool
+	Iterations   int
+	Re           float64
+	Im           float64
+	Index        int
+}
+
+func NewMandelbrot(width int, height int) *Mandelbrot {
+	return &Mandelbrot{
+		Width:         width,
+		Height:        height,
+		X:             0,
+		Y:             0,
+		R:             4,
+		MaxIterations: 300,
+		Colors:        colors.GradientUltraFractal,
+		ImageData:     image.NewRGBA(image.Rect(0, 0, width, height)),
+	}
+}
+
 // Render generates the Mandelbrot set with N CPU number of go routines
 func (m *Mandelbrot) Render() {
-	m.RenderWithBufferedChannel()
-}
+	buffer := m.Height * m.Width / 4
 
-// RenderSequentially generates the Mandelbrot set sequentially, without go routines
-func (m *Mandelbrot) RenderSequentially() {
-	m.ImageData = image.NewRGBA(image.Rect(0, 0, m.Width, m.Height))
-
-	nPixels := m.Height * m.Width
-
-	for index := 0; index < nPixels*4; index += 4 {
-		m.colorize(m.toCoordinate(index))
-	}
-}
-
-// RenderWithUnlimitedRoutines uses one go routine per Coordinate
-// All go routines read from one Coordinate channel with no buffer set
-func (m *Mandelbrot) RenderWithUnlimitedRoutines() {
-	m.ImageData = image.NewRGBA(image.Rect(0, 0, m.Width, m.Height))
-
-	nPixels := m.Height * m.Width
-
-	done := make(chan bool, nPixels)
-
-	for index := 0; index < nPixels*4; index += 4 {
-		go func(c Coordinate) {
-			m.colorize(c)
-			done <- true
-		}(m.toCoordinate(index))
-	}
-
-	for i := 0; i < nPixels; i++ {
-		<-done
-	}
-}
-
-// RenderWithMaxRoutines limits the number of go routines
-// All go routines read from one Coordinate channel with no buffer set
-func (m *Mandelbrot) RenderWithMaxRoutines(maxRoutines int) {
-	m.ImageData = image.NewRGBA(image.Rect(0, 0, m.Width, m.Height))
-
-	nPixels := m.Height * m.Width
-
-	semaphore := make(chan bool, maxRoutines)
-
-	for index := 0; index < nPixels*4; index += 4 {
-		semaphore <- true // occupy one slot
-		go func(c Coordinate) {
-			m.colorize(c)
-			<-semaphore // free one slot
-		}(m.toCoordinate(index))
-	}
-
-	// fill all slots to ensure remaining routines finish
-	for i := 0; i < maxRoutines; i++ {
-		semaphore <- true
-	}
-}
-
-// RenderWithBufferedChannel uses a buffered channel for Coordinates
-// The buffer size is tthe number of pixel devided by n CPU.
-// For each CPU one go routine is started, each reading from the buffered
-// Coorindate channel
-func (m *Mandelbrot) RenderWithBufferedChannel() {
-	m.ImageData = image.NewRGBA(image.Rect(0, 0, m.Width, m.Height))
-	nPixels := m.Height * m.Width
-
-	coordinates := make(chan Coordinate, nPixels/4)
-	go func() {
-		for index := 0; index < nPixels*4; index += 4 {
-			coordinates <- m.toCoordinate(index)
-		}
-		close(coordinates)
-	}()
+	coordinates := m.Coordinates(buffer)
 
 	numCPU := runtime.NumCPU()
 	var wg sync.WaitGroup
@@ -119,7 +70,8 @@ func (m *Mandelbrot) RenderWithBufferedChannel() {
 		go func() {
 			defer wg.Done()
 			for coordinate := range coordinates {
-				m.colorize(coordinate)
+				isMandelbrot, it, r, im := m.isMandelbrot(coordinate)
+				m.ColorizeFunc(isMandelbrot, it, r, im, m.MaxIterations, coordinate.Index)
 			}
 		}()
 	}
@@ -128,7 +80,6 @@ func (m *Mandelbrot) RenderWithBufferedChannel() {
 }
 
 func (m *Mandelbrot) Coordinates(buffer int) chan Coordinate {
-	m.ImageData = image.NewRGBA(image.Rect(0, 0, m.Width, m.Height))
 	nPixels := m.Height * m.Width
 
 	coordinates := make(chan Coordinate, buffer)
@@ -142,15 +93,7 @@ func (m *Mandelbrot) Coordinates(buffer int) chan Coordinate {
 	return coordinates
 }
 
-type MandelbrotResult struct {
-	IsMandelbrot bool
-	Iterations   int
-	Re           float64
-	Im           float64
-	Index        int
-}
-
-func IsMandelbrot(coordinates chan Coordinate, resultChan chan MandelbrotResult, maxIterations int) {
+func (m *Mandelbrot) IsMandelbrot(coordinates chan Coordinate, resultChan chan MandelbrotResult) {
 	numCPU := runtime.NumCPU()
 	var wg sync.WaitGroup
 	wg.Add(numCPU)
@@ -159,31 +102,13 @@ func IsMandelbrot(coordinates chan Coordinate, resultChan chan MandelbrotResult,
 		go func() {
 			defer wg.Done()
 			for coordinate := range coordinates {
-				resultChan <- isMandelbrotToResult(coordinate, maxIterations)
+				resultChan <- m.isMandelbrotToResult(coordinate)
 			}
-			fmt.Println("reading from coordinates channel Done")
 		}()
 	}
 
 	defer close(resultChan)
 	wg.Wait()
-}
-
-// WriteJpeg encodes the Mandelbrot.ImageData to a JPEG file
-// The quality for JPEG encoding must be passed as int, value between 0..100
-func (m *Mandelbrot) WriteJpeg(filename string, quality int) error {
-	outputFile, err := os.Create(filename)
-	defer outputFile.Close()
-
-	if err != nil {
-		fmt.Println("could not create file.")
-		return err
-	}
-
-	options := jpeg.Options{Quality: quality}
-	jpeg.Encode(outputFile, m.ImageData, &options)
-
-	return nil
 }
 
 // toCoordinate maps an []RGBA index to a Coordinate in a complex plane
@@ -231,42 +156,11 @@ func (m *Mandelbrot) isMandelbrot(coordinate Coordinate) (bool, int, float64, fl
 	return true, m.MaxIterations, zr, zi
 }
 
-func isMandelbrot2(coordinate Coordinate, maxIterations int) (bool, int, float64, float64) {
-	var cr = coordinate.Re
-	var ci = coordinate.Im
-	var zr = cr
-	var zi = ci
-
-	for iteration := 0; iteration < maxIterations; iteration++ {
-		if zr*zr+zi*zi > 4 {
-			return false, iteration, zr, zi
-		}
-
-		newzr := (zr * zr) - (zi * zi) + cr
-		newzi := ((zr * zi) * 2) + ci
-		zr = newzr
-		zi = newzi
-	}
-
-	return true, maxIterations, zr, zi
-}
-
-func isMandelbrotToResult(coordinate Coordinate, maxIterations int) MandelbrotResult {
-	isMandelbrot, iterations, re, im := isMandelbrot2(coordinate, maxIterations)
+func (m *Mandelbrot) isMandelbrotToResult(coordinate Coordinate) MandelbrotResult {
+	isMandelbrot, iterations, re, im := m.isMandelbrot(coordinate)
 	result := MandelbrotResult{isMandelbrot, iterations, re, im, coordinate.Index}
 
 	return result
-}
-
-// colorize takes a Coordinate and uses the results from isMandelbrot to
-// get a color. The color is then set in Mandelbrot.ImageData
-func (m *Mandelbrot) colorize(coordinate Coordinate) {
-	isMandelbrot, iteration, real, imaginary := m.isMandelbrot(coordinate)
-	color := colors.GetColor(m.Colors, isMandelbrot, iteration, m.MaxIterations, real, imaginary)
-	m.ImageData.Pix[coordinate.Index] = color.R
-	m.ImageData.Pix[coordinate.Index+1] = color.G
-	m.ImageData.Pix[coordinate.Index+2] = color.B
-	m.ImageData.Pix[coordinate.Index+3] = color.A
 }
 
 func (m *Mandelbrot) ColorizeFunc(isMandelbrot bool, iteration int, real float64, imaginary float64, maxIterations int, index int) {
@@ -275,4 +169,21 @@ func (m *Mandelbrot) ColorizeFunc(isMandelbrot bool, iteration int, real float64
 	m.ImageData.Pix[index+1] = color.G
 	m.ImageData.Pix[index+2] = color.B
 	m.ImageData.Pix[index+3] = color.A
+}
+
+// WriteJpeg encodes the Mandelbrot.ImageData to a JPEG file
+// The quality for JPEG encoding must be passed as int, value between 0..100
+func (m *Mandelbrot) WriteJpeg(filename string, quality int) error {
+	outputFile, err := os.Create(filename)
+	defer outputFile.Close()
+
+	if err != nil {
+		fmt.Println("could not create file.")
+		return err
+	}
+
+	options := jpeg.Options{Quality: quality}
+	jpeg.Encode(outputFile, m.ImageData, &options)
+
+	return nil
 }

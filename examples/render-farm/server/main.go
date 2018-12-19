@@ -8,7 +8,6 @@ import (
 	"net"
 	"sync"
 
-	"github.com/saesh/mandelbrot/pkg/colors"
 	"github.com/saesh/mandelbrot/pkg/farm/discovery"
 	"github.com/saesh/mandelbrot/pkg/farm/node"
 	gen "github.com/saesh/mandelbrot/pkg/generator"
@@ -75,12 +74,7 @@ func (h *HeadNode) Register(ctx context.Context, registerRequest *node.RegisterR
 func (h *HeadNode) startRendering() error {
 
 	// start rendering, TODO: move to own logicial component
-	mb := &gen.Mandelbrot{}
-
-	mb.Width = 400
-	mb.Height = 400
-	mb.MaxIterations = 300
-	mb.Colors = colors.GradientUltraFractal
+	mb := gen.NewMandelbrot(400, 400)
 
 	mb.X = 0
 	mb.Y = 0
@@ -101,7 +95,7 @@ func (h *HeadNode) startRendering() error {
 
 	for _, nodeConfig := range h.Nodes {
 		go func(nodeConfig RenderNodeConfig) {
-			fmt.Printf("rendering on node: %v\n", nodeConfig.Hostname)
+			log.Printf("[START] rendering on node: %v\n", nodeConfig.Hostname)
 			conn, err := grpc.Dial(fmt.Sprintf("%v:%v", nodeConfig.IP, nodeConfig.Port), grpc.WithInsecure())
 			if err != nil {
 				wg.Done()
@@ -118,7 +112,6 @@ func (h *HeadNode) startRendering() error {
 					result, err := stream.Recv()
 					if err == io.EOF {
 						// read done.
-						fmt.Println("receiving from stream DONE")
 						close(waitc)
 						return
 					}
@@ -131,18 +124,19 @@ func (h *HeadNode) startRendering() error {
 			}()
 
 			coordinates := mb.Coordinates((mb.Width * mb.Height) / len(h.Nodes))
+			log.Printf("[START] sending coordinates to node: %v", nodeConfig.Hostname)
 			for coordinate := range coordinates {
 				if err := stream.Send(&node.Coordinate{Re: float32(coordinate.Re), Im: float32(coordinate.Im), Index: int32(coordinate.Index)}); err != nil {
 					log.Fatalf("Failed to send a coordinate: %v", err)
 				}
 			}
-			fmt.Println("sending coordinates DONE")
+			log.Printf("[DONE] sending coordinates to node: %v", nodeConfig.Hostname)
 			err = stream.CloseSend()
 			if err != nil {
 				log.Printf("error closing stream to client: %v\n", err)
 			}
 			<-waitc
-			fmt.Println("rendering on remote nodes DONE")
+			log.Printf("[DONE] rendering on node: %v\n", nodeConfig.Hostname)
 			wg.Done()
 		}(nodeConfig)
 	}

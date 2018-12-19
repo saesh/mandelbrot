@@ -42,7 +42,7 @@ func (n *RenderNode) IsMandelbrot(stream RenderNode_IsMandelbrotServer) error {
 	coordinateChan := make(chan g.Coordinate, 100000)
 	resultChan := make(chan g.MandelbrotResult, 100000)
 
-	go g.IsMandelbrot(coordinateChan, resultChan, int(n.RenderConfig.MaxIterations))
+	go n.MB.IsMandelbrot(coordinateChan, resultChan)
 
 	var wg sync.WaitGroup
 	wg.Add(2)
@@ -178,4 +178,3 @@ func register(ctx context.Context, client HeadNodeClient) error {
 
 	return err
 }
-
