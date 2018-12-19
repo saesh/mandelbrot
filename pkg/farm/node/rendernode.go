@@ -2,7 +2,6 @@ package node
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -12,11 +11,13 @@ import (
 
 	"github.com/saesh/mandelbrot/pkg/farm/discovery"
 	g "github.com/saesh/mandelbrot/pkg/generator"
+	"github.com/saesh/mandelbrot/pkg/util"
 	grpc "google.golang.org/grpc"
 )
 
 const (
 	broadcastAddress = "239.0.0.0:5000"
+	headNodePort     = 8080
 	grpcPort         = 8081
 )
 
@@ -33,7 +34,7 @@ func (n *RenderNode) Configure(ctx context.Context, config *RenderConfiguration)
 		R:             float64(config.R),
 		X:             float64(config.X),
 		Y:             float64(config.Y)}
-	fmt.Println("received render configuration")
+	log.Println("received render configuration")
 	return &Void{}, nil
 }
 
@@ -50,7 +51,7 @@ func (n *RenderNode) IsMandelbrot(stream RenderNode_IsMandelbrotServer) error {
 		for {
 			coordinate, err := stream.Recv()
 			if err == io.EOF {
-				fmt.Println("stream EOF")
+				log.Println("input stream EOF")
 				defer close(coordinateChan)
 				wg.Done()
 				return
@@ -86,7 +87,10 @@ func (n *RenderNode) IsMandelbrot(stream RenderNode_IsMandelbrotServer) error {
 	return nil
 }
 
-func Start() {
+// StartRenderNode is the main entry point for starting a render node.
+// First, the head node is discovered and second a server is started
+// for commands to be received
+func StartRenderNode() {
 	go func() {
 		headNodeIP, err := discoverHeadNodeIP()
 		if err != nil {
@@ -99,21 +103,19 @@ func Start() {
 		}
 	}()
 
-	startRenderNodeService()
+	startRenderNodeServer()
 }
 
-func startRenderNodeService() {
-	renderNode := &RenderNode{}
-
+func startRenderNodeServer() {
 	srv := grpc.NewServer()
 
-	RegisterRenderNodeServer(srv, renderNode)
+	RegisterRenderNodeServer(srv, &RenderNode{})
 
-	l, err := net.Listen("tcp", ":8081")
+	listener, err := net.Listen("tcp", fmt.Sprintf(":%d", grpcPort))
 	if err != nil {
-		log.Fatalf("could not listen to :8081: %v", err)
+		log.Fatalf(fmt.Sprintf("could not listen to :%d: %v", grpcPort, err))
 	}
-	log.Fatal(srv.Serve(l))
+	log.Fatal(srv.Serve(listener))
 }
 
 func discoverHeadNodeIP() (string, error) {
@@ -125,7 +127,10 @@ func discoverHeadNodeIP() (string, error) {
 	stopChan := make(chan struct{})
 	ipChan := make(chan string)
 
-	go listener.Start(stopChan, getSourceIP(ipChan))
+	go listener.Start(stopChan, func(src *net.UDPAddr, numBytes int, bytes []byte) {
+		ipChan <- src.IP.String()
+		close(ipChan)
+	})
 
 	var headNodeIP string
 	for ip := range ipChan {
@@ -137,8 +142,8 @@ func discoverHeadNodeIP() (string, error) {
 }
 
 func registerAtHeadNode(ip string) error {
-	fmt.Printf("registering at head node: %v\n", ip)
-	conn, err := grpc.Dial(fmt.Sprintf("%v:8080", ip), grpc.WithInsecure())
+	log.Printf("registering at head node: %v\n", ip)
+	conn, err := grpc.Dial(fmt.Sprintf("%v:%d", ip, headNodePort), grpc.WithInsecure())
 	if err != nil {
 		return err
 	}
@@ -152,15 +157,8 @@ func registerAtHeadNode(ip string) error {
 	return nil
 }
 
-func getSourceIP(ipChan chan string) func(*net.UDPAddr, int, []byte) {
-	return func(src *net.UDPAddr, numBytes int, bytes []byte) {
-		ipChan <- src.IP.String()
-		close(ipChan)
-	}
-}
-
 func register(ctx context.Context, client HeadNodeClient) error {
-	ip, err := externalIP()
+	ip, err := util.LocalNetworkIP()
 	if err != nil {
 		return err
 	}
@@ -181,39 +179,3 @@ func register(ctx context.Context, client HeadNodeClient) error {
 	return err
 }
 
-func externalIP() (string, error) {
-	ifaces, err := net.Interfaces()
-	if err != nil {
-		return "", err
-	}
-	for _, iface := range ifaces {
-		if iface.Flags&net.FlagUp == 0 {
-			continue // interface down
-		}
-		if iface.Flags&net.FlagLoopback != 0 {
-			continue // loopback interface
-		}
-		addrs, err := iface.Addrs()
-		if err != nil {
-			return "", err
-		}
-		for _, addr := range addrs {
-			var ip net.IP
-			switch v := addr.(type) {
-			case *net.IPNet:
-				ip = v.IP
-			case *net.IPAddr:
-				ip = v.IP
-			}
-			if ip == nil || ip.IsLoopback() {
-				continue
-			}
-			ip = ip.To4()
-			if ip == nil {
-				continue // not an ipv4 address
-			}
-			return ip.String(), nil
-		}
-	}
-	return "", errors.New("are you connected to the network?")
-}

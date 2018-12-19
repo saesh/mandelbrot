@@ -5,5 +5,5 @@ import (
 )
 
 func main() {
-	node.Start()
+	node.StartRenderNode()
 }

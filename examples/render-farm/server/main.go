@@ -65,7 +65,7 @@ func (h *HeadNode) Register(ctx context.Context, registerRequest *node.RegisterR
 
 	fmt.Printf("number of nodes: %v\n", len(h.Nodes))
 
-	if len(h.Nodes) == 2 {
+	if len(h.Nodes) == 1 {
 		defer h.startRendering()
 	}
 
@@ -160,16 +160,10 @@ func configureRenderNode(nodeConfig RenderNodeConfig, config *node.RenderConfigu
 	}
 
 	client := node.NewRenderNodeClient(conn)
-	err = configure(context.Background(), client, config)
+	_, err = client.Configure(context.Background(), config)
 	if err != nil {
 		return err
 	}
 
 	return nil
-}
-
-func configure(ctx context.Context, client node.RenderNodeClient, renderConfig *node.RenderConfiguration) error {
-	_, err := client.Configure(ctx, renderConfig)
-
-	return err
 }
