@@ -65,7 +65,7 @@ func (h *HeadNode) Register(ctx context.Context, registerRequest *node.RegisterR
 
 	log.Printf("number of nodes: %v\n", len(h.Nodes))
 
-	if len(h.Nodes) == 1 {
+	if len(h.Nodes) == 2 {
 		defer h.startRendering()
 	}
 
@@ -103,6 +103,7 @@ func (h *HeadNode) startRendering() error {
 	var wg sync.WaitGroup
 	wg.Add(len(h.Nodes))
 
+	startTime := time.Now()
 	for _, nodeConfig := range h.Nodes {
 		go func(nodeConfig RenderNodeConfig) {
 			timerStart := time.Now()
@@ -136,16 +137,6 @@ func (h *HeadNode) startRendering() error {
 				}
 			}()
 
-			// send coordinates
-			// coordinates := mb.Coordinates((mb.Width * mb.Height) / len(h.Nodes))
-			// log.Printf("[START] sending coordinates to node: %v", nodeConfig.Hostname)
-			// for coordinate := range coordinates {
-			// 	if err := stream.Send(&node.Coordinate{Re: float32(coordinate.Re), Im: float32(coordinate.Im), Index: int32(coordinate.Index)}); err != nil {
-			// 		log.Fatalf("Failed to send a coordinate: %v", err)
-			// 	}
-			// }
-			// log.Printf("[DONE] sending coordinates to node: %v", nodeConfig.Hostname)
-
 			err = stream.CloseSend()
 			if err != nil {
 				log.Printf("error closing stream to client: %v\n", err)
@@ -157,6 +148,7 @@ func (h *HeadNode) startRendering() error {
 	}
 
 	wg.Wait()
+	log.Printf("[DONE] total rendering time: %v", time.Since(startTime))
 	mb.WriteJpeg("test.jpeg", 90)
 	return nil
 }
