@@ -51,6 +51,7 @@ func (n *RenderNode) IsMandelbrot(void *Void, stream RenderNode_IsMandelbrotServ
 	var wg sync.WaitGroup
 	wg.Add(1)
 
+	log.Printf("starting to render %d pixels\n", pixelCount)
 	go func() {
 		var count = 0
 		for r := range resultChan {
@@ -69,7 +70,7 @@ func (n *RenderNode) IsMandelbrot(void *Void, stream RenderNode_IsMandelbrotServ
 	}()
 
 	wg.Wait()
-
+	log.Println("done rendering")
 	return nil
 }
 
@@ -77,6 +78,8 @@ func (n *RenderNode) IsMandelbrot(void *Void, stream RenderNode_IsMandelbrotServ
 // First, the head node is discovered and second a server is started
 // for commands to be received
 func StartRenderNode() {
+	log.Printf("render node started with %d CPUs\n", runtime.NumCPU())
+
 	go func() {
 		headNodeIP, err := discoverHeadNodeIP()
 		if err != nil {
@@ -105,6 +108,7 @@ func startRenderNodeServer() {
 }
 
 func discoverHeadNodeIP() (string, error) {
+	log.Println("searching for head node")
 	listener, err := discovery.NewListener(broadcastAddress)
 	if err != nil {
 		return "", err
