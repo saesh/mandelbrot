@@ -56,6 +56,7 @@ func (n *RenderNode) IsMandelbrot(void *Void, stream RenderNode_IsMandelbrotServ
 			Iteration:    int32(r.Iterations),
 			Index:        int32(r.Index),
 			IsMandelbrot: r.IsMandelbrot}
+
 		if err := stream.Send(computeResult); err != nil {
 			log.Printf("Error sending compute result: %v", err)
 		}

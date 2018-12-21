@@ -32,7 +32,7 @@ func (h *HeadNode) Register(ctx context.Context, registerRequest *RegisterReques
 
 	log.Printf("number of nodes: %v\n", len(h.Nodes))
 
-	if len(h.Nodes) == 2 {
+	if len(h.Nodes) == 1 {
 		defer h.startRendering()
 	}
 
@@ -42,38 +42,14 @@ func (h *HeadNode) Register(ctx context.Context, registerRequest *RegisterReques
 func (h *HeadNode) Results(void *Void, srv HeadNode_ResultsServer) error {
 	log.Println("WebSocket connection, waiting for compute results")
 
-	for {
-		select {
-		case pixel := <-pixelChannel:
-			if pixel == nil {
-				pixelChannel = nil
-				break
-			}
-
-			if err := srv.Send(pixel); err != nil {
-				log.Printf("Error sending pixel: %v", err)
-				return err
-			}
-			// time.Sleep(10 * time.Millisecond)
-		}
-
-		if pixelChannel == nil {
-			break
+	for pixel := range pixelChannel {
+		if err := srv.Send(pixel); err != nil {
+			log.Printf("Error sending pixel: %v", err)
+			return err
 		}
 	}
 
 	return nil
-
-	// for pixel := range pixelChannel {
-	// 	log.Printf("sending pixel: %v", pixel)
-	// 	if err := srv.Send(pixel); err != nil {
-	// 		log.Printf("Error sending pixel: %v", err)
-	// 		return err
-	// 	}
-	// 	time.Sleep(10 * time.Millisecond)
-	// }
-
-	// return nil
 }
 
 func (h *HeadNode) startRendering() error {
@@ -139,9 +115,11 @@ func (h *HeadNode) startRendering() error {
 
 					r, g, b, _ := mb.ColorizeFunc(result.IsMandelbrot, int(result.Iteration), float64(result.Re), float64(result.Im), mb.MaxIterations, int(result.Index))
 
-					xValue := int32(result.Index % int32(width))
-					yValue := int32(result.Index / int32(width))
-					pixelChannel <- &Pixel{X: xValue, Y: yValue, R: r, G: g, B: b}
+					pixelChannel <- &Pixel{
+						Index: result.Index,
+						R:     r,
+						G:     g,
+						B:     b}
 				}
 			}()
 

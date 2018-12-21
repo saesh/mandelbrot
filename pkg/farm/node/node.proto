@@ -39,11 +39,10 @@ message ComputeResult {
 message Void {}
 
 message Pixel {
-  int32 x = 1;
-  int32 y = 2;
-  int32 r = 3;
-  int32 g = 4;
-  int32 b = 5;
+  int32 r = 1;
+  int32 g = 2;
+  int32 b = 3;
+  int32 index = 4;
 }
 
 service HeadNode {
