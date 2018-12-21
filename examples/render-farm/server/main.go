@@ -19,7 +19,9 @@ var (
 	broadcastAddress = flag.String("broadcastaddress", "239.0.0.0:5000", "broadcast address")
 	grpcAddress      = flag.String("grpcaddress", ":8080", "listen grpc address")
 	httpAddr         = flag.String("addr", ":8000", "listen http addr")
-	requiredClients  = flag.String("clients", "1", "number of clients to start autorendering")
+	requiredClients  = flag.Int("clients", 1, "number of clients to start autorendering")
+	width            = flag.Int("width", 100, "width of image")
+	height           = flag.Int("height", 100, "height of image")
 )
 
 func run() error {
@@ -64,8 +66,14 @@ func listenGRPC(address string) error {
 		return err
 	}
 
+	headNode := &node.HeadNode{
+		RequiredClients: *requiredClients,
+		Width:           *width,
+		Height:          *height,
+	}
+
 	grpcServer := grpc.NewServer()
-	node.RegisterHeadNodeServer(grpcServer, &node.HeadNode{RequiredClients: convertToInt(*requiredClients)})
+	node.RegisterHeadNodeServer(grpcServer, headNode)
 
 	log.Printf("starting GRPC server on %v", address)
 	go func() {

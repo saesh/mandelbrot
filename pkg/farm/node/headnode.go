@@ -22,6 +22,8 @@ type HeadNode struct {
 	Nodes           []RenderNodeConfig
 	pixelChannel    chan *Pixel
 	RequiredClients int
+	Width           int
+	Height          int
 }
 
 var pixelChannel = make(chan *Pixel, 20000000)
@@ -56,8 +58,8 @@ func (h *HeadNode) Results(void *Void, srv HeadNode_ResultsServer) error {
 func (h *HeadNode) startRendering() error {
 
 	// start rendering, TODO: move to own logicial component
-	width := 100
-	height := 100
+	width := h.Width
+	height := h.Height
 	mb := gen.NewMandelbrot(width, height)
 
 	mb.X = 0
