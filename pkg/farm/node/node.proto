@@ -2,6 +2,8 @@ syntax = "proto3";
 
 package node;
 
+import "google/api/annotations.proto";
+
 message RegisterRequest {
   string ip = 1;
   int32  port = 2;
@@ -36,8 +38,21 @@ message ComputeResult {
 
 message Void {}
 
+message Pixel {
+  int32 x = 1;
+  int32 y = 2;
+  int32 r = 3;
+  int32 g = 4;
+  int32 b = 5;
+}
+
 service HeadNode {
   rpc Register(RegisterRequest) returns(Void) {}
+  rpc Results(Void) returns(stream Pixel) {
+    option (google.api.http) = {
+      get: "/results/*"
+    };
+  }
 }
 
 service RenderNode {

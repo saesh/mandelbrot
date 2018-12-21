@@ -19,8 +19,11 @@ type RenderNodeConfig struct {
 }
 
 type HeadNode struct {
-	Nodes []RenderNodeConfig
+	Nodes        []RenderNodeConfig
+	pixelChannel chan *Pixel
 }
+
+var pixelChannel = make(chan *Pixel, 20000000)
 
 func (h *HeadNode) Register(ctx context.Context, registerRequest *RegisterRequest) (*Void, error) {
 	log.Printf("render node registered: %v (%v:%v)\n", registerRequest.Hostname, registerRequest.Ip, registerRequest.Port)
@@ -29,18 +32,55 @@ func (h *HeadNode) Register(ctx context.Context, registerRequest *RegisterReques
 
 	log.Printf("number of nodes: %v\n", len(h.Nodes))
 
-	if len(h.Nodes) == 1 {
+	if len(h.Nodes) == 2 {
 		defer h.startRendering()
 	}
 
 	return &Void{}, nil
 }
 
+func (h *HeadNode) Results(void *Void, srv HeadNode_ResultsServer) error {
+	log.Println("WebSocket connection, waiting for compute results")
+
+	for {
+		select {
+		case pixel := <-pixelChannel:
+			if pixel == nil {
+				pixelChannel = nil
+				break
+			}
+
+			if err := srv.Send(pixel); err != nil {
+				log.Printf("Error sending pixel: %v", err)
+				return err
+			}
+			// time.Sleep(10 * time.Millisecond)
+		}
+
+		if pixelChannel == nil {
+			break
+		}
+	}
+
+	return nil
+
+	// for pixel := range pixelChannel {
+	// 	log.Printf("sending pixel: %v", pixel)
+	// 	if err := srv.Send(pixel); err != nil {
+	// 		log.Printf("Error sending pixel: %v", err)
+	// 		return err
+	// 	}
+	// 	time.Sleep(10 * time.Millisecond)
+	// }
+
+	// return nil
+}
+
 func (h *HeadNode) startRendering() error {
 
 	// start rendering, TODO: move to own logicial component
-	width := 3000
-	height := 3000
+	width := 100
+	height := 100
 	mb := gen.NewMandelbrot(width, height)
 
 	mb.X = 0
@@ -96,8 +136,12 @@ func (h *HeadNode) startRendering() error {
 					if err != nil {
 						log.Fatalf("Failed to receive a compute result: %v", err)
 					}
-					// done read result here
-					mb.ColorizeFunc(result.IsMandelbrot, int(result.Iteration), float64(result.Re), float64(result.Im), mb.MaxIterations, int(result.Index))
+
+					r, g, b, _ := mb.ColorizeFunc(result.IsMandelbrot, int(result.Iteration), float64(result.Re), float64(result.Im), mb.MaxIterations, int(result.Index))
+
+					xValue := int32(result.Index % int32(width))
+					yValue := int32(result.Index / int32(width))
+					pixelChannel <- &Pixel{X: xValue, Y: yValue, R: r, G: g, B: b}
 				}
 			}()
 
@@ -112,6 +156,7 @@ func (h *HeadNode) startRendering() error {
 	}
 
 	wg.Wait()
+	close(pixelChannel)
 	log.Printf("[DONE] total rendering time: %v", time.Since(startTime))
 	mb.WriteJpeg("test.jpeg", 90)
 	return nil

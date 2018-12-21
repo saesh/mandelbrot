@@ -7,7 +7,6 @@ import (
 	"net"
 	"os"
 	"runtime"
-	"sync"
 
 	"github.com/saesh/mandelbrot/pkg/farm/discovery"
 	g "github.com/saesh/mandelbrot/pkg/generator"
@@ -48,26 +47,20 @@ func (n *RenderNode) IsMandelbrot(void *Void, stream RenderNode_IsMandelbrotServ
 
 	go n.MB.IsMandelbrot(coordinateChan, resultChan)
 
-	var wg sync.WaitGroup
-	wg.Add(1)
-
 	log.Printf("starting to render %d pixels\n", pixelCount)
-	go func() {
-		for r := range resultChan {
-			computeResult := &ComputeResult{
-				Re:           float32(r.Re),
-				Im:           float32(r.Im),
-				Iteration:    int32(r.Iterations),
-				Index:        int32(r.Index),
-				IsMandelbrot: r.IsMandelbrot}
-			if err := stream.Send(computeResult); err != nil {
-				log.Printf("Error sending compute result: %v", err)
-			}
-		}
-		wg.Done()
-	}()
 
-	wg.Wait()
+	for r := range resultChan {
+		computeResult := &ComputeResult{
+			Re:           float32(r.Re),
+			Im:           float32(r.Im),
+			Iteration:    int32(r.Iterations),
+			Index:        int32(r.Index),
+			IsMandelbrot: r.IsMandelbrot}
+		if err := stream.Send(computeResult); err != nil {
+			log.Printf("Error sending compute result: %v", err)
+		}
+	}
+
 	log.Println("done rendering")
 	return nil
 }

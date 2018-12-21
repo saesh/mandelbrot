@@ -160,13 +160,15 @@ func (m *Mandelbrot) isMandelbrotToResult(coordinate Coordinate) MandelbrotResul
 	return result
 }
 
-func (m *Mandelbrot) ColorizeFunc(isMandelbrot bool, iteration int, real float64, imaginary float64, maxIterations int, index int) {
+func (m *Mandelbrot) ColorizeFunc(isMandelbrot bool, iteration int, real float64, imaginary float64, maxIterations int, index int) (int32, int32, int32, int32) {
 	color := colors.GetColor(m.Colors, isMandelbrot, iteration, maxIterations, real, imaginary)
 	arrayIndex := index * 4
 	m.ImageData.Pix[arrayIndex] = color.R
 	m.ImageData.Pix[arrayIndex+1] = color.G
 	m.ImageData.Pix[arrayIndex+2] = color.B
 	m.ImageData.Pix[arrayIndex+3] = color.A
+
+	return int32(uint(color.R)), int32(uint(color.G)), int32(uint(color.B)), int32(uint(color.A))
 }
 
 // WriteJpeg encodes the Mandelbrot.ImageData to a JPEG file
