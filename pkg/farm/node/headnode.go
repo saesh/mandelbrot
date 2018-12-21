@@ -67,15 +67,15 @@ func (h *HeadNode) startRendering() error {
 	nodesCount := len(h.Nodes)
 	pixelPerNode := (width * height) / nodesCount
 
-	for index, nodeConfig := range h.Nodes {
+	for nodeIndex, nodeConfig := range h.Nodes {
 		configureRenderNode(nodeConfig, &RenderConfiguration{
 			ColorPreset:   int32(mb.Colors),
 			MaxIterations: int32(mb.MaxIterations),
 			X:             float32(mb.X),
 			Y:             float32(mb.Y),
 			R:             float32(mb.R),
-			StartIndex:    int32(index * pixelPerNode),
-			EndIndex:      int32(index*pixelPerNode + pixelPerNode),
+			StartIndex:    int32(nodeIndex * pixelPerNode),
+			EndIndex:      int32(nodeIndex*pixelPerNode + pixelPerNode),
 			Width:         int32(mb.Width),
 			Height:        int32(mb.Height),
 		})
