@@ -137,7 +137,7 @@ func (h *HeadNode) startRendering() error {
 	wg.Wait()
 	close(pixelChannel)
 	log.Printf("[DONE] total rendering time: %v", time.Since(startTime))
-	mb.WriteJpeg("test.jpeg", 90)
+	mb.WriteJpeg("output.jpeg", 90)
 	return nil
 }
 
