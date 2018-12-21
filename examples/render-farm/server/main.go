@@ -6,6 +6,7 @@ import (
 	"log"
 	"net"
 	"net/http"
+	"strconv"
 
 	"github.com/grpc-ecosystem/grpc-gateway/runtime"
 	"github.com/saesh/mandelbrot/pkg/farm/discovery"
@@ -18,6 +19,7 @@ var (
 	broadcastAddress = flag.String("broadcastaddress", "239.0.0.0:5000", "broadcast address")
 	grpcAddress      = flag.String("grpcaddress", ":8080", "listen grpc address")
 	httpAddr         = flag.String("addr", ":8000", "listen http addr")
+	requiredClients  = flag.String("clients", "1", "number of clients to start autorendering")
 )
 
 func run() error {
@@ -63,7 +65,7 @@ func listenGRPC(address string) error {
 	}
 
 	grpcServer := grpc.NewServer()
-	node.RegisterHeadNodeServer(grpcServer, &node.HeadNode{})
+	node.RegisterHeadNodeServer(grpcServer, &node.HeadNode{RequiredClients: convertToInt(*requiredClients)})
 
 	log.Printf("starting GRPC server on %v", address)
 	go func() {
@@ -73,6 +75,17 @@ func listenGRPC(address string) error {
 	}()
 
 	return nil
+}
+
+func convertToInt(value string) int {
+	i, err := strconv.Atoi(value)
+	if err != nil {
+		log.Println(err)
+
+		return 1
+	}
+
+	return i
 }
 
 func main() {

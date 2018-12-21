@@ -19,8 +19,9 @@ type RenderNodeConfig struct {
 }
 
 type HeadNode struct {
-	Nodes        []RenderNodeConfig
-	pixelChannel chan *Pixel
+	Nodes           []RenderNodeConfig
+	pixelChannel    chan *Pixel
+	RequiredClients int
 }
 
 var pixelChannel = make(chan *Pixel, 20000000)
@@ -32,7 +33,7 @@ func (h *HeadNode) Register(ctx context.Context, registerRequest *RegisterReques
 
 	log.Printf("number of nodes: %v\n", len(h.Nodes))
 
-	if len(h.Nodes) == 1 {
+	if len(h.Nodes) == h.RequiredClients {
 		defer h.startRendering()
 	}
 
